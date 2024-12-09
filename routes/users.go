@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"waitlist-golang/database"
+	"waitlist-golang/utils"
 )
 
 type InfoUser struct {
@@ -88,7 +89,7 @@ func SaveUserToDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
+
 
 
 	// insert into the db
@@ -103,6 +104,17 @@ func SaveUserToDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// insert into referrals table
+	statement := `INSERT INTO referrals (ref_email, ref_to_email, ipaddress) VALUES ($1, $2, $3)`
+	_, err = database.DBPool.Exec(ctx, statement, user.RefBy, user.EmailAddress, user.IPAddress)
+	if err != nil {
+		log.Printf("Error inserting referral into database: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save referral to database: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// SEND EMAIL with go it becomes a async operation
+	go utils.SendEmail("Dhruvadeep <waitlist@mail.dhruvadeep.dev>", user.EmailAddress, user.Name)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
